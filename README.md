@@ -94,7 +94,7 @@ Jalankan server pengembangan lokal menggunakan **Uvicorn** dengan perintah berik
 ```bash
 uvicorn app:app --reload --host 127.0.0.1 --port 8080
 ```
-
+Jika gagal, ganti port dengan port lain contohnya 5000. 
 **Penjelasan Parameter:**
 * `app:app`: Mengacu pada berkas `app.py` dan objek instansiasi FastAPI bernama `app`.
 * `--reload`: Mengaktifkan mode deteksi perubahan kode otomatis (server akan *restart* otomatis saat file diubah).
@@ -106,10 +106,9 @@ Setelah server berhasil berjalan (ditandai dengan pesan `Uvicorn running on http
 ```text
 http://127.0.0.1:8080
 ```
-
-Untuk mengakses dokumentasi interaktif API backend (Swagger UI bawaan FastAPI), kunjungi:
+Atau jika gagal, maka gunakan alamat berikut:
 ```text
-http://127.0.0.1:8080/docs
+http://127.0.0.1:5000
 ```
 
 ---
