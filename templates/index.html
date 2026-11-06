@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maritime Liner Logistics — Command Center</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: {
+        'navy-deep':'#0B132B','navy-mid':'#1C2541','navy-card':'#1E2D50',
+        'cyan':'#48CAE4','emerald':'#10B981','amber-w':'#F59E0B','red-w':'#EF4444',
+      }}}
+    }
+  </script>
+  <style>
+    :root {
+      --c-bg:#0B132B; --c-surface:#1C2541; --c-card:#1E2D50; --c-border:#2D3E6C;
+      --c-cyan:#48CAE4; --c-emerald:#10B981; --c-amber:#F59E0B; --c-red:#EF4444;
+      --c-text:#E2E8F0; --c-muted:#94A3B8;
+    }
+    body{background:var(--c-bg);color:var(--c-text);font-family:'Segoe UI',system-ui,sans-serif;}
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:var(--c-surface)}
+    ::-webkit-scrollbar-thumb{background:var(--c-border);border-radius:4px}
+
+    .card{background:var(--c-card);border:1px solid var(--c-border);border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 4px 24px rgba(0,0,0,.35)}
+    .kpi-accent-cyan{border-left:4px solid var(--c-cyan)}
+    .kpi-accent-green{border-left:4px solid var(--c-emerald)}
+    .kpi-accent-amber{border-left:4px solid var(--c-amber)}
+    .kpi-accent-red{border-left:4px solid var(--c-red)}
+
+    .nav-link{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;color:var(--c-muted);font-size:.875rem;cursor:pointer;transition:all .15s}
+    .nav-link:hover{background:var(--c-border);color:var(--c-text)}
+    .nav-link.active{background:rgba(72,202,228,.12);color:var(--c-cyan);border-left:3px solid var(--c-cyan)}
+
+    .badge{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:9999px;font-size:.72rem;font-weight:600}
+    .badge-green{background:rgba(16,185,129,.15);color:var(--c-emerald)}
+    .badge-cyan{background:rgba(72,202,228,.15);color:var(--c-cyan)}
+    .badge-amber{background:rgba(245,158,11,.15);color:var(--c-amber)}
+    .badge-red{background:rgba(239,68,68,.15);color:var(--c-red)}
+    .badge-slate{background:rgba(100,116,139,.2);color:var(--c-muted)}
+
+    .tbl{width:100%;border-collapse:collapse;font-size:.82rem}
+    .tbl th{color:var(--c-muted);font-weight:600;padding:8px 12px;text-align:left;border-bottom:1px solid var(--c-border)}
+    .tbl td{padding:9px 12px;border-bottom:1px solid rgba(45,62,108,.5);vertical-align:middle}
+    .tbl tr:last-child td{border-bottom:none}
+    .tbl tr:hover td{background:rgba(255,255,255,.03)}
+
+    .section-title{font-size:1.1rem;font-weight:700;color:var(--c-text)}
+    .section-sub{font-size:.8rem;color:var(--c-muted);margin-top:2px}
+
+    input[type=range]{accent-color:var(--c-cyan);cursor:pointer}
+
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--c-emerald);animation:pulse 2s infinite}
+
+    .page{display:none}
+    .page.active{display:block}
+
+    .matrix-cell{padding:6px 10px;border-radius:6px;text-align:center;font-size:.78rem;font-weight:600}
+    .matrix-supply{background:rgba(16,185,129,.15);color:var(--c-emerald)}
+    .matrix-demand{background:rgba(239,68,68,.15);color:var(--c-red)}
+    .matrix-balanced{background:rgba(100,116,139,.15);color:var(--c-muted)}
+
+    .btn-primary{background:linear-gradient(135deg,#48CAE4,#2196b8);color:#0B132B;font-weight:700;border-radius:8px;padding:10px 22px;border:none;cursor:pointer;transition:opacity .15s;font-size:.875rem;display:inline-flex;align-items:center;gap:6px}
+    .btn-primary:hover{opacity:.88}
+    .btn-primary:disabled{opacity:.45;cursor:not-allowed}
+    .btn-danger{background:rgba(239,68,68,.15);color:var(--c-red);border:1px solid rgba(239,68,68,.3);font-weight:600;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:.78rem;transition:background .15s}
+    .btn-danger:hover{background:rgba(239,68,68,.3)}
+    .btn-edit{background:rgba(72,202,228,.12);color:var(--c-cyan);border:1px solid rgba(72,202,228,.25);font-weight:600;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:.78rem;transition:background .15s}
+    .btn-edit:hover{background:rgba(72,202,228,.25)}
+    .btn-secondary{background:rgba(100,116,139,.15);color:var(--c-muted);border:1px solid var(--c-border);font-weight:600;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:.875rem;transition:background .15s}
+    .btn-secondary:hover{background:rgba(100,116,139,.3)}
+
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{width:18px;height:18px;border:2px solid #0B132B;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+
+    /* ─── MODAL ──────────────────── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+    .modal-overlay.hidden{display:none}
+    .modal-box{background:var(--c-card);border:1px solid var(--c-border);border-radius:14px;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+    .modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--c-border);display:flex;align-items:center;justify-content:between;gap:12px}
+    .modal-body{padding:20px 24px}
+    .modal-footer{padding:14px 24px 20px;border-top:1px solid var(--c-border);display:flex;justify-content:flex-end;gap:10px}
+
+    /* ─── FORM INPUTS ─────────────── */
+    .field-group{margin-bottom:14px}
+    .field-label{display:block;font-size:.78rem;color:var(--c-muted);font-weight:600;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+    .field-input{width:100%;background:var(--c-surface);border:1px solid #2A3558;border-radius:8px;padding:9px 12px;color:var(--c-text);font-size:.875rem;outline:none;transition:border-color .15s;box-sizing:border-box}
+    .field-input:focus{border-color:var(--c-cyan)}
+    .field-input.error{border-color:var(--c-red)}
+    .field-error{font-size:.72rem;color:var(--c-red);margin-top:3px;display:none}
+    select.field-input option{background:#1C2541}
+
+    /* ─── TOAST ───────────────────── */
+    #toast-container{position:fixed;top:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+    .toast{background:var(--c-card);border:1px solid var(--c-border);border-radius:10px;padding:12px 18px;font-size:.82rem;color:var(--c-text);box-shadow:0 8px 24px rgba(0,0,0,.5);display:flex;align-items:center;gap:10px;pointer-events:all;animation:slideIn .25s ease}
+    .toast-success{border-left:4px solid var(--c-emerald)}
+    .toast-error{border-left:4px solid var(--c-red)}
+    .toast-info{border-left:4px solid var(--c-cyan)}
+    @keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+    /* ─── INLINE EDIT ─────────────── */
+    .inline-edit-input{background:var(--c-surface);border:1px solid #2A3558;border-radius:6px;padding:4px 8px;color:var(--c-text);font-size:.82rem;width:80px;outline:none}
+    .inline-edit-input:focus{border-color:var(--c-cyan)}
+
+    /* ─── STATUS DROPDOWN ─────────── */
+    .status-select{background:var(--c-surface);border:1px solid var(--c-border);border-radius:6px;padding:4px 8px;color:var(--c-text);font-size:.75rem;cursor:pointer;outline:none}
+    .status-select:focus{border-color:var(--c-cyan)}
+  </style>
+</head>
+
+<body class="flex h-screen overflow-hidden">
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- ═══ SIDEBAR ═══════════════════════════════════════════════ -->
+<aside style="width:240px;min-width:240px;background:var(--c-surface);border-right:1px solid var(--c-border);"
+       class="flex flex-col py-6 px-3 gap-1 overflow-y-auto">
+  <div class="px-3 mb-6">
+    <div class="flex items-center gap-2 mb-1">
+      <i data-lucide="anchor" style="color:var(--c-cyan);width:22px;height:22px;"></i>
+      <span style="font-size:1rem;font-weight:800;color:var(--c-cyan);">MaritimeLiner</span>
+    </div>
+    <div style="font-size:.7rem;color:var(--c-muted);padding-left:30px;">Command Center</div>
+  </div>
+  <div class="nav-link active" id="nav-dashboard" onclick="navigate('dashboard',this)">
+    <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i> Dashboard Overview
+  </div>
+  <div class="nav-link" id="nav-schedules" onclick="navigate('schedules',this)">
+    <i data-lucide="route" style="width:16px;height:16px;"></i> Fixed Schedules / Rotations
+  </div>
+  <div class="nav-link" id="nav-fleet" onclick="navigate('fleet',this)">
+    <i data-lucide="ship" style="width:16px;height:16px;"></i> Fleet Management
+  </div>
+  <div class="nav-link" id="nav-ecr" onclick="navigate('ecr',this)">
+    <i data-lucide="box" style="width:16px;height:16px;"></i> Container Repositioning
+  </div>
+  <div class="flex-1"></div>
+  <div style="font-size:.68rem;color:var(--c-muted);padding:8px 12px;">v1.1.0 · Fixed Liner Service<br>Nusantara Ring Route</div>
+</aside>
+
+<!-- ═══ MAIN ══════════════════════════════════════════════════ -->
+<div class="flex flex-col flex-1 overflow-hidden">
+
+  <!-- TOP BAR -->
+  <header style="background:var(--c-surface);border-bottom:1px solid var(--c-border);"
+          class="flex items-center justify-between px-6 py-3 flex-shrink-0">
+    <h1 id="page-title" style="font-size:1.05rem;font-weight:700;color:var(--c-text);">Dashboard Overview</h1>
+    <div class="flex items-center gap-5">
+      <div class="flex items-center gap-2">
+        <div class="pulse-dot"></div>
+        <span style="font-size:.75rem;color:var(--c-muted);">SQLite <span id="db-size">…</span></span>
+      </div>
+      <div style="font-size:.78rem;color:var(--c-muted);" id="sys-clock"></div>
+      <button onclick="refreshCurrent()" style="background:rgba(72,202,228,.1);border:1px solid var(--c-border);border-radius:6px;padding:5px 10px;cursor:pointer;color:var(--c-cyan);font-size:.75rem;display:flex;align-items:center;gap:5px;">
+        <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- PAGES -->
+  <main class="flex-1 overflow-y-auto p-6" style="background:var(--c-bg);">
+
+    <!-- ══ DASHBOARD PAGE ══════════════════════════════════ -->
+    <section id="page-dashboard" class="page active">
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="card kpi-accent-cyan">
+          <div class="flex items-center justify-between mb-3">
+            <span style="font-size:.75rem;color:var(--c-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Active Voyages</span>
+            <i data-lucide="navigation" style="width:18px;height:18px;color:var(--c-cyan);"></i>
+          </div>
+          <div id="kpi-voyages" style="font-size:2.2rem;font-weight:800;color:var(--c-cyan);">—</div>
+          <div style="font-size:.75rem;color:var(--c-muted);margin-top:4px;">EN_ROUTE &amp; BERTHED</div>
+        </div>
+        <div class="card kpi-accent-green">
+          <div class="flex items-center justify-between mb-3">
+            <span style="font-size:.75rem;color:var(--c-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Schedule Reliability</span>
+            <i data-lucide="clock" style="width:18px;height:18px;color:var(--c-emerald);"></i>
+          </div>
+          <div id="kpi-reliability" style="font-size:2.2rem;font-weight:800;color:var(--c-emerald);">—</div>
+          <div style="font-size:.75rem;color:var(--c-muted);margin-top:4px;">% On-time arrivals</div>
+        </div>
+        <div class="card kpi-accent-amber">
+          <div class="flex items-center justify-between mb-3">
+            <span style="font-size:.75rem;color:var(--c-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Empty TEU Imbalance</span>
+            <i data-lucide="arrow-left-right" style="width:18px;height:18px;color:var(--c-amber);"></i>
+          </div>
+          <div id="kpi-imbalance" style="font-size:2.2rem;font-weight:800;color:var(--c-amber);">—</div>
+          <div style="font-size:.75rem;color:var(--c-muted);margin-top:4px;">Total surplus + deficit TEU</div>
+        </div>
+        <div class="card kpi-accent-red">
+          <div class="flex items-center justify-between mb-3">
+            <span style="font-size:.75rem;color:var(--c-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Est. Bunker (Active)</span>
+            <i data-lucide="fuel" style="width:18px;height:18px;color:var(--c-red);"></i>
+          </div>
+          <div id="kpi-bunker" style="font-size:2.2rem;font-weight:800;color:var(--c-red);">—</div>
+          <div style="font-size:.75rem;color:var(--c-muted);margin-top:4px;">MT VLSFO / day</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="card">
+          <div class="section-title mb-1">Voyage Status Distribution</div>
+          <div class="section-sub mb-4">All voyages in the system</div>
+          <canvas id="chart-voyage-status" height="180"></canvas>
+        </div>
+        <div class="card">
+          <div class="section-title mb-1">Empty TEU Balance per Port</div>
+          <div class="section-sub mb-4">Stock vs Demand — Nusantara Ring</div>
+          <canvas id="chart-inventory" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Bunker Simulator -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="section-title">⚡ Bunker Speed Simulator</div>
+            <div class="section-sub">Cubic-speed fuel model: F(v) = k · v³</div>
+          </div>
+          <select id="sim-vessel" onchange="updateSimulator()"
+            style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:8px;padding:6px 12px;color:var(--c-text);font-size:.82rem;"></select>
+        </div>
+        <div class="grid grid-cols-3 gap-6 items-start">
+          <div class="col-span-2">
+            <label style="font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:8px;">
+              Speed: <span id="sim-speed-label" style="color:var(--c-cyan);font-weight:700;font-size:1rem;">14</span> knots
+            </label>
+            <input type="range" id="sim-speed" min="5" max="25" step="0.5" value="14" oninput="updateSimulator()" class="w-full mb-4"/>
+            <div class="grid grid-cols-2 gap-4">
+              <div style="background:var(--c-surface);border-radius:8px;padding:14px;">
+                <div style="font-size:.72rem;color:var(--c-muted);margin-bottom:4px;">FUEL RATE</div>
+                <div id="sim-fuel-rate" style="font-size:1.6rem;font-weight:800;color:var(--c-amber);">—</div>
+                <div style="font-size:.72rem;color:var(--c-muted);">MT VLSFO / day</div>
+              </div>
+              <div style="background:var(--c-surface);border-radius:8px;padding:14px;">
+                <div style="font-size:.72rem;color:var(--c-muted);margin-bottom:4px;">VOYAGE DURATION</div>
+                <div id="sim-voyage-days" style="font-size:1.6rem;font-weight:800;color:var(--c-cyan);">—</div>
+                <div style="font-size:.72rem;color:var(--c-muted);">days (900 NM)</div>
+              </div>
+              <div style="background:var(--c-surface);border-radius:8px;padding:14px;">
+                <div style="font-size:.72rem;color:var(--c-muted);margin-bottom:4px;">TOTAL FUEL</div>
+                <div id="sim-total-fuel" style="font-size:1.6rem;font-weight:800;color:var(--c-red);">—</div>
+                <div style="font-size:.72rem;color:var(--c-muted);">MT total voyage</div>
+              </div>
+              <div style="background:var(--c-surface);border-radius:8px;padding:14px;">
+                <div style="font-size:.72rem;color:var(--c-muted);margin-bottom:4px;">ETA Δ vs Design</div>
+                <div id="sim-eta-delta" style="font-size:1.6rem;font-weight:800;color:var(--c-emerald);">—</div>
+                <div style="font-size:.72rem;color:var(--c-muted);">hours (± vs 14 kn)</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:.75rem;color:var(--c-muted);margin-bottom:8px;">Speed–Fuel Curve</div>
+            <canvas id="chart-bunker-curve" height="180"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ SCHEDULES PAGE ══════════════════════════════════ -->
+    <section id="page-schedules" class="page">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <div class="section-title">Fixed Schedule &amp; Rotation Board</div>
+          <div class="section-sub">Nusantara Ring Route · Jakarta → Surabaya → Makassar → Balikpapan → Jakarta</div>
+        </div>
+        <button class="btn-primary" onclick="openVoyageModal()">
+          <i data-lucide="plus" style="width:15px;height:15px;"></i> New Voyage
+        </button>
+      </div>
+      <div id="schedule-container" class="flex flex-col gap-4"></div>
+    </section>
+
+    <!-- ══ FLEET PAGE ══════════════════════════════════════ -->
+    <section id="page-fleet" class="page">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <div class="section-title">Fleet Management</div>
+          <div class="section-sub">All vessels — capacity, technical specs, and current assignment</div>
+        </div>
+        <button class="btn-primary" onclick="openVesselModal()">
+          <i data-lucide="plus" style="width:15px;height:15px;"></i> Add New Vessel
+        </button>
+      </div>
+      <div class="card">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Vessel Name</th><th>IMO Number</th><th>Capacity (TEU)</th>
+              <th>DWT (Ton)</th><th>Est. Draft (m)</th><th>Design Fuel (MT/d)</th>
+              <th>Current Voyage</th><th>Status</th><th style="text-align:center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="fleet-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ ECR PAGE ════════════════════════════════════════ -->
+    <section id="page-ecr" class="page">
+      <div class="mb-5">
+        <div class="section-title">Empty Container Repositioning (ECR) Optimizer</div>
+        <div class="section-sub">Transportation Problem · Vogel's Approximation Method (VAM) · Minimise relocation cost</div>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="card">
+          <div class="section-title mb-1">Supply &amp; Demand Matrix</div>
+          <div class="section-sub mb-4">Click <strong style="color:var(--c-cyan);">Edit</strong> to update stock/demand, then re-run the optimizer</div>
+          <table class="tbl">
+            <thead>
+              <tr><th>Port</th><th>UN/LOCODE</th><th>Stock (TEU)</th><th>Demand (TEU)</th><th>Net</th><th style="text-align:center;">Edit</th></tr>
+            </thead>
+            <tbody id="ecr-inventory-tbody"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="section-title mb-1">Relocation Cost Matrix (USD / TEU)</div>
+          <div class="section-sub mb-4">Bilateral shipping costs between all ports</div>
+          <div id="ecr-cost-matrix" style="overflow-x:auto;"></div>
+        </div>
+      </div>
+      <div class="card mb-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="section-title">Run Transport Optimization</div>
+            <div class="section-sub">Executes VAM to find minimum-cost repositioning plan. Handles supply ≠ demand automatically.</div>
+          </div>
+          <button id="btn-optimize" class="btn-primary" onclick="runOptimizer()">
+            <i data-lucide="zap" style="width:15px;height:15px;"></i> Run Transport Optimization
+          </button>
+        </div>
+      </div>
+      <div id="ecr-results" class="card" style="display:none;">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="section-title">Optimization Result</div>
+            <div id="ecr-balance-note" class="section-sub"></div>
+          </div>
+          <div class="flex gap-4">
+            <div style="text-align:right;">
+              <div style="font-size:.72rem;color:var(--c-muted);">TOTAL COST</div>
+              <div id="ecr-total-cost" style="font-size:1.4rem;font-weight:800;color:var(--c-amber);">—</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:.72rem;color:var(--c-muted);">EST. SAVINGS</div>
+              <div id="ecr-savings" style="font-size:1.4rem;font-weight:800;color:var(--c-emerald);">—</div>
+            </div>
+          </div>
+        </div>
+        <table class="tbl">
+          <thead>
+            <tr><th>#</th><th>Origin Port</th><th>Destination Port</th><th>TEU to Move</th><th>Cost / TEU</th><th>Total Cost</th></tr>
+          </thead>
+          <tbody id="ecr-result-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════════════════════ -->
+
+<!-- ── VESSEL MODAL ───────────────────────────────────────── -->
+<div id="modal-vessel" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <i data-lucide="ship" style="width:20px;height:20px;color:var(--c-cyan);"></i>
+      <h2 id="modal-vessel-title" style="font-size:1rem;font-weight:700;flex:1;margin-left:10px;">Add New Vessel</h2>
+      <button onclick="closeModal('modal-vessel')" style="background:none;border:none;color:var(--c-muted);cursor:pointer;">
+        <i data-lucide="x" style="width:18px;height:18px;"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="vessel-edit-id"/>
+      <div class="grid grid-cols-2 gap-x-4">
+        <div class="field-group col-span-2">
+          <label class="field-label">Vessel Name *</label>
+          <input id="v-name" class="field-input" type="text" placeholder="e.g. MV Nusantara Jaya"/>
+          <div id="v-name-err" class="field-error">Required</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">IMO Number *</label>
+          <input id="v-imo" class="field-input" type="text" placeholder="e.g. IMO9234567"/>
+          <div id="v-imo-err" class="field-error">Required & must be unique</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Capacity (TEU) *</label>
+          <input id="v-teu" class="field-input" type="number" min="1" placeholder="e.g. 1800"/>
+          <div id="v-teu-err" class="field-error">Must be a positive integer</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">DWT Tonnage *</label>
+          <input id="v-dwt" class="field-input" type="number" min="1" step="0.1" placeholder="e.g. 25000"/>
+          <div id="v-dwt-err" class="field-error">Must be positive</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Design Fuel (MT/day) *</label>
+          <input id="v-fuel" class="field-input" type="number" min="0.1" step="0.1" placeholder="e.g. 42.0"/>
+          <div id="v-fuel-err" class="field-error">Must be positive</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-vessel')">Cancel</button>
+      <button id="btn-vessel-save" class="btn-primary" onclick="saveVessel()">
+        <i data-lucide="save" style="width:15px;height:15px;"></i> Save Vessel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── VOYAGE MODAL ───────────────────────────────────────── -->
+<div id="modal-voyage" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <i data-lucide="route" style="width:20px;height:20px;color:var(--c-cyan);"></i>
+      <h2 style="font-size:1rem;font-weight:700;flex:1;margin-left:10px;">Create New Voyage</h2>
+      <button onclick="closeModal('modal-voyage')" style="background:none;border:none;color:var(--c-muted);cursor:pointer;">
+        <i data-lucide="x" style="width:18px;height:18px;"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <label class="field-label">Voyage Number *</label>
+        <input id="voy-number" class="field-input" type="text" placeholder="e.g. NJ202601001"/>
+        <div id="voy-number-err" class="field-error">Required & must be unique</div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Assign Vessel *</label>
+        <select id="voy-vessel" class="field-input">
+          <option value="">— Select a vessel —</option>
+        </select>
+        <div id="voy-vessel-err" class="field-error">Please select a vessel</div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Initial Status</label>
+        <select id="voy-status" class="field-input">
+          <option value="SCHEDULED">SCHEDULED</option>
+          <option value="EN_ROUTE">EN_ROUTE</option>
+          <option value="BERTHED">BERTHED</option>
+          <option value="COMPLETED">COMPLETED</option>
+        </select>
+      </div>
+
+      <!-- Add legs section -->
+      <div style="border-top:1px solid var(--c-border);margin-top:16px;padding-top:16px;">
+        <div style="font-size:.85rem;font-weight:700;color:var(--c-text);margin-bottom:10px;">Port Stops (Legs) — Optional</div>
+        <div id="leg-list" class="flex flex-col gap-2 mb-3"></div>
+        <div style="background:var(--c-surface);border-radius:8px;padding:12px;">
+          <div class="grid grid-cols-4 gap-2 mb-2">
+            <select id="leg-port" class="field-input" style="font-size:.78rem;">
+              <option value="">— Port —</option>
+            </select>
+            <input id="leg-order" class="field-input" type="number" min="0" placeholder="Order" style="font-size:.78rem;"/>
+            <input id="leg-eta" class="field-input" type="datetime-local" style="font-size:.78rem;"/>
+            <input id="leg-etd" class="field-input" type="datetime-local" style="font-size:.78rem;"/>
+          </div>
+          <button onclick="addLegToList()" style="background:rgba(72,202,228,.1);border:1px solid rgba(72,202,228,.25);border-radius:6px;padding:5px 12px;color:var(--c-cyan);font-size:.78rem;cursor:pointer;">
+            + Add Port Stop
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-voyage')">Cancel</button>
+      <button id="btn-voyage-save" class="btn-primary" onclick="saveVoyage()">
+        <i data-lucide="save" style="width:15px;height:15px;"></i> Create Voyage
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD LEG MODAL (on existing voyage) ────────────────── -->
+<div id="modal-add-leg" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <i data-lucide="map-pin" style="width:20px;height:20px;color:var(--c-cyan);"></i>
+      <h2 style="font-size:1rem;font-weight:700;flex:1;margin-left:10px;">Add Port Stop</h2>
+      <button onclick="closeModal('modal-add-leg')" style="background:none;border:none;color:var(--c-muted);cursor:pointer;">
+        <i data-lucide="x" style="width:18px;height:18px;"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="add-leg-voyage-id"/>
+      <div class="field-group">
+        <label class="field-label">Port *</label>
+        <select id="add-leg-port" class="field-input"></select>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Stop Order *</label>
+        <input id="add-leg-order" class="field-input" type="number" min="0" placeholder="e.g. 4"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="field-group">
+          <label class="field-label">ETA</label>
+          <input id="add-leg-eta" class="field-input" type="datetime-local"/>
+        </div>
+        <div class="field-group">
+          <label class="field-label">ETD</label>
+          <input id="add-leg-etd" class="field-input" type="datetime-local"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-add-leg')">Cancel</button>
+      <button class="btn-primary" onclick="submitAddLeg()">
+        <i data-lucide="plus" style="width:15px;height:15px;"></i> Add Stop
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ECR INVENTORY EDIT MODAL ───────────────────────────── -->
+<div id="modal-ecr-edit" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-header">
+      <i data-lucide="edit-3" style="width:20px;height:20px;color:var(--c-cyan);"></i>
+      <h2 id="modal-ecr-title" style="font-size:1rem;font-weight:700;flex:1;margin-left:10px;">Update Inventory</h2>
+      <button onclick="closeModal('modal-ecr-edit')" style="background:none;border:none;color:var(--c-muted);cursor:pointer;">
+        <i data-lucide="x" style="width:18px;height:18px;"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ecr-edit-port-id"/>
+      <div class="field-group">
+        <label class="field-label">Empty TEU Stock</label>
+        <input id="ecr-edit-stock" class="field-input" type="number" min="0"/>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Demand (TEU)</label>
+        <input id="ecr-edit-demand" class="field-input" type="number" min="0"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-ecr-edit')">Cancel</button>
+      <button class="btn-primary" onclick="saveInventory()">
+        <i data-lucide="save" style="width:15px;height:15px;"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════ -->
+<script>
+// ─────────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = n => n == null ? '—' : Number(n).toLocaleString('en-US');
+const fmtDate = iso => iso ? new Date(iso).toLocaleString('en-US',{month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}) : '—';
+
+async function fetchJSON(url, opts={}) {
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try { const j = await res.json(); msg = j.detail || msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// ─────────────────────────────────────────────────────────────
+// TOAST NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────
+function showToast(message, type='info') {
+  const icons = { success:'check-circle', error:'alert-circle', info:'info' };
+  const colors = { success:'var(--c-emerald)', error:'var(--c-red)', info:'var(--c-cyan)' };
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<i data-lucide="${icons[type]}" style="width:16px;height:16px;color:${colors[type]};flex-shrink:0;"></i><span>${message}</span>`;
+  $('toast-container').appendChild(el);
+  lucide.createIcons({ nodes: [el] });
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODAL HELPERS
+// ─────────────────────────────────────────────────────────────
+function openModal(id) {
+  $(id).classList.remove('hidden');
+  lucide.createIcons();
+}
+function closeModal(id) {
+  $(id).classList.add('hidden');
+}
+// Close on overlay click
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.add('hidden');
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// FORM VALIDATION HELPERS
+// ─────────────────────────────────────────────────────────────
+function setErr(inputId, errId, msg) {
+  $(inputId).classList.add('error');
+  $(errId).textContent = msg;
+  $(errId).style.display = 'block';
+}
+function clearErr(inputId, errId) {
+  $(inputId).classList.remove('error');
+  $(errId).style.display = 'none';
+}
+function clearAllErrors(ids) {
+  ids.forEach(([inp, err]) => clearErr(inp, err));
+}
+
+// ─────────────────────────────────────────────────────────────
+// CLOCK & DB HEALTH
+// ─────────────────────────────────────────────────────────────
+function startClock() {
+  const tick = () => {
+    $('sys-clock').textContent = new Date().toLocaleString('en-US',
+      {year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  };
+  tick(); setInterval(tick, 1000);
+}
+async function checkHealth() {
+  try {
+    const d = await fetchJSON('/api/health');
+    $('db-size').textContent = d.status==='ok' ? `${d.size_kb} KB ✓` : 'ERR';
+  } catch { $('db-size').textContent = 'offline'; }
+}
+
+// ─────────────────────────────────────────────────────────────
+// SPA NAVIGATION
+// ─────────────────────────────────────────────────────────────
+let currentPage = 'dashboard';
+const pageTitles = {
+  dashboard: 'Dashboard Overview',
+  schedules: 'Fixed Schedules / Rotations',
+  fleet:     'Fleet Management',
+  ecr:       'Container Repositioning (ECR) Optimizer',
+};
+
+function navigate(page, navEl) {
+  document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  else document.getElementById(`nav-${page}`)?.classList.add('active');
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  $(`page-${page}`).classList.add('active');
+  $('page-title').textContent = pageTitles[page];
+  currentPage = page;
+  loadPage(page);
+}
+function refreshCurrent() { loadPage(currentPage); }
+function loadPage(page) {
+  if (page==='dashboard') loadDashboard();
+  else if (page==='schedules') loadSchedules();
+  else if (page==='fleet') loadFleet();
+  else if (page==='ecr') loadECR();
+}
+
+// Auto-refresh dashboard charts after any mutation
+function refreshDashboardInBackground() {
+  if (currentPage !== 'dashboard') {
+    // Re-fetch KPI silently so next Dashboard visit is fresh
+    fetchJSON('/api/kpi').catch(()=>{});
+  } else {
+    loadDashboard();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// CHART REGISTRY
+// ─────────────────────────────────────────────────────────────
+const charts = {};
+function makeChart(id, config) {
+  if (charts[id]) { charts[id].destroy(); }
+  charts[id] = new Chart($(id), config);
+}
+
+// ─────────────────────────────────────────────────────────────
+// DASHBOARD
+// ─────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const kpi = await fetchJSON('/api/kpi');
+    $('kpi-voyages').textContent     = kpi.active_voyages;
+    $('kpi-reliability').textContent = kpi.schedule_reliability + '%';
+    $('kpi-imbalance').textContent   = fmt(kpi.empty_imbalance_teu) + ' TEU';
+    $('kpi-bunker').textContent      = fmt(kpi.bunker_consumption_mt_day);
+  } catch(e) { console.error('KPI:', e); }
+
+  try {
+    const sch = await fetchJSON('/api/schedules');
+    const counts = {};
+    sch.voyages.forEach(v => { counts[v.status] = (counts[v.status]||0)+1; });
+    const sLabels = Object.keys(counts);
+    makeChart('chart-voyage-status', {
+      type: 'doughnut',
+      data: { labels: sLabels, datasets:[{
+        data: sLabels.map(k=>counts[k]),
+        backgroundColor: sLabels.map(s=>({EN_ROUTE:'#48CAE4',SCHEDULED:'#F59E0B',BERTHED:'#10B981',COMPLETED:'#64748B'}[s]||'#94A3B8')),
+        borderColor:'#1E2D50', borderWidth:2
+      }]},
+      options:{ plugins:{legend:{labels:{color:'#94A3B8',font:{size:11}}}}, cutout:'62%' }
+    });
+  } catch(e) { console.error('Schedule chart:', e); }
+
+  try {
+    const ecr = await fetchJSON('/api/ecr/matrix');
+    const portNames = ecr.inventory.map(r=>r.code);
+    makeChart('chart-inventory', {
+      type:'bar',
+      data:{ labels:portNames, datasets:[
+        { label:'Stock',  data:ecr.inventory.map(r=>r.empty_teu_stock), backgroundColor:'rgba(72,202,228,.6)', borderRadius:4 },
+        { label:'Demand', data:ecr.inventory.map(r=>r.demand_teu),      backgroundColor:'rgba(239,68,68,.5)',   borderRadius:4 },
+      ]},
+      options:{
+        plugins:{legend:{labels:{color:'#94A3B8',font:{size:11}}}},
+        scales:{ x:{ticks:{color:'#94A3B8'},grid:{color:'#2D3E6C'}}, y:{ticks:{color:'#94A3B8'},grid:{color:'#2D3E6C'}} }
+      }
+    });
+  } catch(e) { console.error('Inventory chart:', e); }
+
+  try {
+    const fleet = await fetchJSON('/api/vessels');
+    const sel = $('sim-vessel');
+    const prev = sel.value;
+    sel.innerHTML = '';
+    fleet.vessels.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id; opt.textContent = v.name; sel.appendChild(opt);
+    });
+    if (prev) sel.value = prev;
+    buildBunkerCurve(fleet.vessels.find(v=>v.id==sel.value) || fleet.vessels[0]);
+    updateSimulator();
+  } catch(e) { console.error('Fleet for simulator:', e); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// BUNKER SIMULATOR
+// ─────────────────────────────────────────────────────────────
+let simDebounce = null;
+async function updateSimulator() {
+  clearTimeout(simDebounce);
+  simDebounce = setTimeout(async () => {
+    const speed = parseFloat($('sim-speed').value);
+    const vesselId = $('sim-vessel').value;
+    $('sim-speed-label').textContent = speed;
+    try {
+      const d = await fetchJSON(`/api/bunker/simulate?speed_knots=${speed}&vessel_id=${vesselId}&distance_nm=900`);
+      $('sim-fuel-rate').textContent   = d.fuel_mt_day;
+      $('sim-voyage-days').textContent = d.voyage_days;
+      $('sim-total-fuel').textContent  = d.total_fuel_mt;
+      const delta = d.eta_delta_h;
+      $('sim-eta-delta').textContent = (delta>=0?'+':'') + delta + 'h';
+      $('sim-eta-delta').style.color = delta>0?'var(--c-emerald)':delta<0?'var(--c-amber)':'var(--c-cyan)';
+    } catch {}
+  }, 120);
+}
+function buildBunkerCurve(vessel) {
+  if (!vessel) return;
+  const k = vessel.fuel_consumption_sea / (14**3);
+  const speeds=[], fuels=[];
+  for (let v=5; v<=25; v+=0.5) { speeds.push(v); fuels.push(+(k*v**3).toFixed(2)); }
+  makeChart('chart-bunker-curve', {
+    type:'line',
+    data:{ labels:speeds, datasets:[{
+      label:'MT/day', data:fuels, borderColor:'#48CAE4',
+      backgroundColor:'rgba(72,202,228,.08)', borderWidth:2, pointRadius:0, fill:true, tension:0.4
+    }]},
+    options:{
+      plugins:{legend:{display:false}},
+      scales:{ x:{ticks:{color:'#64748B',maxTicksLimit:7},grid:{color:'#2D3E6C'}}, y:{ticks:{color:'#64748B'},grid:{color:'#2D3E6C'}} }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// SCHEDULES PAGE (read + status change + delete + add leg)
+// ─────────────────────────────────────────────────────────────
+async function loadSchedules() {
+  const container = $('schedule-container');
+  container.innerHTML = '<div style="color:var(--c-muted);padding:20px;">Loading…</div>';
+  try {
+    const data = await fetchJSON('/api/voyages');
+    container.innerHTML = '';
+    if (!data.voyages.length) {
+      container.innerHTML = '<div class="card" style="color:var(--c-muted);text-align:center;padding:40px;">No voyages found. Create one using "+ New Voyage".</div>';
+      return;
+    }
+    data.voyages.forEach(v => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      let legsHTML = '';
+      if (v.legs.length) {
+        legsHTML = `<table class="tbl" style="margin-top:14px;">
+          <thead><tr><th>#</th><th>Port</th><th>Max Draft</th><th>Vessel Draft</th><th>Safe?</th><th>ETA</th><th>ETD</th><th>ATA</th><th>Delay</th></tr></thead><tbody>`;
+        v.legs.forEach(leg => {
+          const draftCell = leg.draft_safe
+            ? `<span class="badge badge-green">✓ Safe</span>`
+            : `<span class="badge badge-red">⚠ Risk</span>`;
+          let delayCell = '—';
+          if (leg.delay_hours !== null) {
+            delayCell = leg.delay_hours>0 ? `<span class="badge badge-amber">+${leg.delay_hours}h</span>`
+              : leg.delay_hours<0 ? `<span class="badge badge-green">${leg.delay_hours}h</span>`
+              : `<span class="badge badge-green">On time</span>`;
+          }
+          legsHTML += `<tr>
+            <td style="color:var(--c-muted)">${leg.stop_order+1}</td>
+            <td><span style="color:var(--c-cyan);font-weight:600;">${leg.port_code}</span>&nbsp;${leg.port_name}</td>
+            <td>${leg.max_draft}m</td><td>${leg.estimated_vessel_draft}m</td>
+            <td>${draftCell}</td>
+            <td style="color:var(--c-muted)">${fmtDate(leg.eta)}</td>
+            <td style="color:var(--c-muted)">${fmtDate(leg.etd)}</td>
+            <td>${leg.ata?`<span style="color:var(--c-text)">${fmtDate(leg.ata)}</span>`:'<span style="color:var(--c-muted)">Pending</span>'}</td>
+            <td>${delayCell}</td>
+          </tr>`;
+        });
+        legsHTML += '</tbody></table>';
+      } else {
+        legsHTML = `<div style="color:var(--c-muted);font-size:.8rem;margin-top:10px;padding:8px 0;">No port stops yet. 
+          <button onclick="openAddLegModal(${v.id})" style="color:var(--c-cyan);background:none;border:none;cursor:pointer;font-size:.8rem;">+ Add Port Stop</button></div>`;
+      }
+
+      const statusColor = {EN_ROUTE:'cyan',SCHEDULED:'amber',BERTHED:'green',COMPLETED:'slate'}[v.status]||'slate';
+      const canDelete = !['EN_ROUTE','BERTHED'].includes(v.status);
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-3">
+            <i data-lucide="ship" style="width:18px;height:18px;color:var(--c-cyan);"></i>
+            <div>
+              <span style="font-size:1rem;font-weight:700;color:var(--c-text);">${v.vessel_name}</span>
+              <span style="font-size:.78rem;color:var(--c-muted);margin-left:8px;">${v.imo_number}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span style="font-size:.82rem;color:var(--c-muted);">VOY#</span>
+            <span style="font-size:.9rem;font-weight:700;color:var(--c-cyan);">${v.voyage_number}</span>
+            <span class="badge badge-${statusColor}">${v.status.replace('_',' ')}</span>
+            <select class="status-select" onchange="changeVoyageStatus(${v.id}, this.value, this)" title="Change status">
+              ${['SCHEDULED','EN_ROUTE','BERTHED','COMPLETED'].map(s=>`<option value="${s}" ${s===v.status?'selected':''}>${s.replace('_',' ')}</option>`).join('')}
+            </select>
+            <button class="btn-edit" style="font-size:.75rem;" onclick="openAddLegModal(${v.id})" title="Add Port Stop">
+              <i data-lucide="plus" style="width:13px;height:13px;"></i> Leg
+            </button>
+            ${canDelete
+              ? `<button class="btn-danger" style="font-size:.75rem;" onclick="deleteVoyage(${v.id}, '${v.voyage_number}')">
+                  <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Delete
+                </button>`
+              : `<span style="font-size:.72rem;color:var(--c-muted);padding:0 4px;" title="Cannot delete while EN_ROUTE or BERTHED">🔒 Active</span>`
+            }
+          </div>
+        </div>
+        <div style="font-size:.78rem;color:var(--c-muted);">${v.capacity_teu} TEU · ${fmt(v.dwt_tonnage)} DWT</div>
+        ${legsHTML}
+      `;
+      container.appendChild(card);
+    });
+    lucide.createIcons();
+  } catch(e) {
+    container.innerHTML = `<div class="card" style="color:var(--c-red);">Error: ${e.message}</div>`;
+  }
+}
+
+async function changeVoyageStatus(voyageId, newStatus, selectEl) {
+  try {
+    await fetchJSON(`/api/voyages/${voyageId}/status`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status: newStatus })
+    });
+    showToast(`Voyage status updated to ${newStatus.replace('_',' ')}`, 'success');
+    loadSchedules();
+    refreshDashboardInBackground();
+  } catch(e) {
+    showToast(e.message, 'error');
+    loadSchedules(); // reset select to previous value
+  }
+}
+
+async function deleteVoyage(id, number) {
+  if (!confirm(`Delete voyage "${number}" and all its legs? This cannot be undone.`)) return;
+  try {
+    await fetchJSON(`/api/voyages/${id}`, { method:'DELETE' });
+    showToast(`Voyage "${number}" deleted`, 'success');
+    loadSchedules();
+    refreshDashboardInBackground();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ── New Voyage Modal ───────────────────────────────────────
+let pendingLegs = [];  // legs staged in voyage creation form
+
+async function openVoyageModal() {
+  pendingLegs = [];
+  $('voy-number').value = '';
+  $('voy-status').value = 'SCHEDULED';
+  $('leg-list').innerHTML = '';
+  clearAllErrors([['voy-number','voy-number-err'],['voy-vessel','voy-vessel-err']]);
+
+  // Populate vessel dropdown
+  try {
+    const data = await fetchJSON('/api/vessels');
+    const sel = $('voy-vessel');
+    sel.innerHTML = '<option value="">— Select a vessel —</option>';
+    data.vessels.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id; opt.textContent = `${v.name} (${v.imo_number})`;
+      sel.appendChild(opt);
+    });
+  } catch(e) { showToast('Could not load vessels', 'error'); return; }
+
+  // Populate port dropdown
+  try {
+    const pd = await fetchJSON('/api/ports');
+    const sel = $('leg-port');
+    sel.innerHTML = '<option value="">— Port —</option>';
+    pd.ports.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = `${p.code} — ${p.name}`;
+      sel.appendChild(opt);
+    });
+  } catch {}
+
+  openModal('modal-voyage');
+}
+
+function addLegToList() {
+  const portId = $('leg-port').value;
+  const portText = $('leg-port').selectedOptions[0]?.textContent || '?';
+  const order = $('leg-order').value;
+  const eta = $('leg-eta').value;
+  const etd = $('leg-etd').value;
+  if (!portId || order === '') { showToast('Select a port and stop order', 'error'); return; }
+
+  pendingLegs.push({ port_id: parseInt(portId), stop_order: parseInt(order),
+    eta: eta ? eta.replace('T',' ')+':00' : null,
+    etd: etd ? etd.replace('T',' ')+':00' : null,
+  });
+
+  const item = document.createElement('div');
+  item.style.cssText = 'background:var(--c-surface);border-radius:6px;padding:6px 10px;font-size:.78rem;display:flex;justify-content:space-between;align-items:center;';
+  item.innerHTML = `<span style="color:var(--c-cyan);">Stop ${order}</span>&nbsp;${portText}
+    ${eta?`<span style="color:var(--c-muted);margin-left:8px;">ETA: ${eta}</span>`:''}
+    <button onclick="this.parentElement.remove();pendingLegs.splice(${pendingLegs.length-1},1)"
+      style="background:none;border:none;color:var(--c-red);cursor:pointer;font-size:1rem;">×</button>`;
+  $('leg-list').appendChild(item);
+
+  // Clear inputs
+  $('leg-port').value = ''; $('leg-order').value = ''; $('leg-eta').value = ''; $('leg-etd').value = '';
+}
+
+async function saveVoyage() {
+  let valid = true;
+  clearAllErrors([['voy-number','voy-number-err'],['voy-vessel','voy-vessel-err']]);
+
+  if (!$('voy-number').value.trim()) { setErr('voy-number','voy-number-err','Voyage number is required'); valid=false; }
+  if (!$('voy-vessel').value)        { setErr('voy-vessel','voy-vessel-err','Please select a vessel'); valid=false; }
+  if (!valid) return;
+
+  const btn = $('btn-voyage-save');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating…';
+
+  try {
+    const newVoyage = await fetchJSON('/api/voyages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        voyage_number: $('voy-number').value.trim(),
+        vessel_id:     parseInt($('voy-vessel').value),
+        status:        $('voy-status').value,
+      })
+    });
+
+    // Add staged legs
+    for (const leg of pendingLegs) {
+      try {
+        await fetchJSON(`/api/voyages/${newVoyage.id}/legs`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(leg)
+        });
+      } catch(e) { showToast(`Warning: leg add failed — ${e.message}`, 'error'); }
+    }
+
+    showToast(`Voyage "${newVoyage.voyage_number}" created successfully`, 'success');
+    closeModal('modal-voyage');
+    loadSchedules();
+    refreshDashboardInBackground();
+  } catch(e) {
+    if (e.message.toLowerCase().includes('already exists')) setErr('voy-number','voy-number-err', e.message);
+    else showToast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="save" style="width:15px;height:15px;"></i> Create Voyage';
+    lucide.createIcons();
+  }
+}
+
+// ── Add Leg to Existing Voyage ─────────────────────────────
+async function openAddLegModal(voyageId) {
+  $('add-leg-voyage-id').value = voyageId;
+  $('add-leg-port').innerHTML = '<option value="">Loading…</option>';
+  $('add-leg-order').value = '';
+  $('add-leg-eta').value = ''; $('add-leg-etd').value = '';
+  try {
+    const pd = await fetchJSON('/api/ports');
+    const sel = $('add-leg-port');
+    sel.innerHTML = '<option value="">— Select Port —</option>';
+    pd.ports.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = `${p.code} — ${p.name}`;
+      sel.appendChild(opt);
+    });
+  } catch {}
+  openModal('modal-add-leg');
+}
+
+async function submitAddLeg() {
+  const voyageId = $('add-leg-voyage-id').value;
+  const portId   = $('add-leg-port').value;
+  const order    = $('add-leg-order').value;
+  const eta      = $('add-leg-eta').value;
+  const etd      = $('add-leg-etd').value;
+
+  if (!portId || order === '') { showToast('Port and stop order are required', 'error'); return; }
+  try {
+    await fetchJSON(`/api/voyages/${voyageId}/legs`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        port_id:    parseInt(portId),
+        stop_order: parseInt(order),
+        eta:  eta ? eta.replace('T',' ')+':00' : null,
+        etd:  etd ? etd.replace('T',' ')+':00' : null,
+      })
+    });
+    showToast('Port stop added successfully', 'success');
+    closeModal('modal-add-leg');
+    loadSchedules();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// FLEET PAGE (CRUD)
+// ─────────────────────────────────────────────────────────────
+async function loadFleet() {
+  const tbody = $('fleet-tbody');
+  tbody.innerHTML = '<tr><td colspan="9" style="color:var(--c-muted);padding:20px;">Loading…</td></tr>';
+  try {
+    const data = await fetchJSON('/api/vessels');
+    tbody.innerHTML = '';
+    if (!data.vessels.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="color:var(--c-muted);text-align:center;padding:30px;">No vessels found.</td></tr>';
+      return;
+    }
+    data.vessels.forEach(v => {
+      const draft = (v.dwt_tonnage/2500).toFixed(1);
+      const vsBadge = v.voyage_status
+        ? `<span class="badge badge-${{EN_ROUTE:'cyan',SCHEDULED:'amber',BERTHED:'green',COMPLETED:'slate'}[v.voyage_status]||'slate'}">${v.voyage_status.replace('_',' ')}</span>`
+        : '<span class="badge badge-slate">Idle</span>';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-weight:600;color:var(--c-text);">${v.name}</td>
+        <td style="color:var(--c-muted);font-family:monospace;">${v.imo_number}</td>
+        <td style="color:var(--c-cyan);font-weight:700;">${fmt(v.capacity_teu)}</td>
+        <td>${fmt(v.dwt_tonnage)}</td>
+        <td>${draft}m</td>
+        <td style="color:var(--c-amber);">${v.fuel_consumption_sea} MT/d</td>
+        <td style="font-family:monospace;font-size:.78rem;">${v.voyage_number||'—'}</td>
+        <td>${vsBadge}</td>
+        <td style="text-align:center;">
+          <button class="btn-edit" onclick="openVesselModal(${JSON.stringify(v).replace(/"/g,'&quot;')})" style="margin-right:4px;">
+            <i data-lucide="pencil" style="width:12px;height:12px;"></i> Edit
+          </button>
+          <button class="btn-danger" onclick="deleteVessel(${v.id},'${v.name.replace(/'/g,"\\'")}')">
+            <i data-lucide="trash-2" style="width:12px;height:12px;"></i> Delete
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    lucide.createIcons();
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--c-red);">Error: ${e.message}</td></tr>`;
+  }
+}
+
+// ── Vessel Modal ───────────────────────────────────────────
+function openVesselModal(vessel) {
+  clearAllErrors([
+    ['v-name','v-name-err'],['v-imo','v-imo-err'],
+    ['v-teu','v-teu-err'],['v-dwt','v-dwt-err'],['v-fuel','v-fuel-err']
+  ]);
+  if (vessel) {
+    $('modal-vessel-title').textContent = 'Edit Vessel';
+    $('vessel-edit-id').value    = vessel.id;
+    $('v-name').value            = vessel.name;
+    $('v-imo').value             = vessel.imo_number;
+    $('v-teu').value             = vessel.capacity_teu;
+    $('v-dwt').value             = vessel.dwt_tonnage;
+    $('v-fuel').value            = vessel.fuel_consumption_sea;
+    $('btn-vessel-save').innerHTML = '<i data-lucide="save" style="width:15px;height:15px;"></i> Update Vessel';
+  } else {
+    $('modal-vessel-title').textContent = 'Add New Vessel';
+    $('vessel-edit-id').value = '';
+    ['v-name','v-imo','v-teu','v-dwt','v-fuel'].forEach(id => $(id).value = '');
+    $('btn-vessel-save').innerHTML = '<i data-lucide="save" style="width:15px;height:15px;"></i> Save Vessel';
+  }
+  openModal('modal-vessel');
+}
+
+async function saveVessel() {
+  let valid = true;
+  clearAllErrors([
+    ['v-name','v-name-err'],['v-imo','v-imo-err'],
+    ['v-teu','v-teu-err'],['v-dwt','v-dwt-err'],['v-fuel','v-fuel-err']
+  ]);
+
+  const name  = $('v-name').value.trim();
+  const imo   = $('v-imo').value.trim();
+  const teu   = parseInt($('v-teu').value);
+  const dwt   = parseFloat($('v-dwt').value);
+  const fuel  = parseFloat($('v-fuel').value);
+
+  if (!name)        { setErr('v-name','v-name-err','Vessel name is required'); valid=false; }
+  if (!imo)         { setErr('v-imo','v-imo-err','IMO number is required'); valid=false; }
+  if (!teu || teu<=0) { setErr('v-teu','v-teu-err','Must be a positive integer'); valid=false; }
+  if (!dwt || dwt<=0) { setErr('v-dwt','v-dwt-err','Must be positive'); valid=false; }
+  if (!fuel|| fuel<=0){ setErr('v-fuel','v-fuel-err','Must be positive'); valid=false; }
+  if (!valid) return;
+
+  const editId = $('vessel-edit-id').value;
+  const btn = $('btn-vessel-save');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    if (editId) {
+      await fetchJSON(`/api/vessels/${editId}`, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, imo_number:imo, capacity_teu:teu, dwt_tonnage:dwt, fuel_consumption_sea:fuel })
+      });
+      showToast(`Vessel "${name}" updated`, 'success');
+    } else {
+      await fetchJSON('/api/vessels', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, imo_number:imo, capacity_teu:teu, dwt_tonnage:dwt, fuel_consumption_sea:fuel })
+      });
+      showToast(`Vessel "${name}" added`, 'success');
+    }
+    closeModal('modal-vessel');
+    loadFleet();
+    refreshDashboardInBackground();
+  } catch(e) {
+    if (e.message.toLowerCase().includes('imo')) setErr('v-imo','v-imo-err', e.message);
+    else showToast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = editId
+      ? '<i data-lucide="save" style="width:15px;height:15px;"></i> Update Vessel'
+      : '<i data-lucide="save" style="width:15px;height:15px;"></i> Save Vessel';
+    lucide.createIcons();
+  }
+}
+
+async function deleteVessel(id, name) {
+  if (!confirm(`Delete vessel "${name}"?\n\nNote: vessels with active voyages cannot be deleted.`)) return;
+  try {
+    await fetchJSON(`/api/vessels/${id}`, { method:'DELETE' });
+    showToast(`Vessel "${name}" deleted`, 'success');
+    loadFleet();
+    refreshDashboardInBackground();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ECR PAGE
+// ─────────────────────────────────────────────────────────────
+async function loadECR() {
+  $('ecr-results').style.display = 'none';
+  try {
+    const data = await fetchJSON('/api/ecr/matrix');
+    renderInventoryTable(data.inventory);
+    renderCostMatrix(data.inventory, data.costs);
+  } catch(e) { showToast('ECR matrix load failed: '+e.message, 'error'); }
+}
+
+function renderInventoryTable(inventory) {
+  const tbody = $('ecr-inventory-tbody');
+  tbody.innerHTML = '';
+  inventory.forEach(r => {
+    const net = r.empty_teu_stock - r.demand_teu;
+    let cls = 'matrix-balanced';
+    if (net > 0) cls = 'matrix-supply';
+    else if (net < 0) cls = 'matrix-demand';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:600;">${r.name}</td>
+      <td style="font-family:monospace;color:var(--c-cyan);">${r.code}</td>
+      <td style="color:var(--c-emerald);font-weight:600;">${fmt(r.empty_teu_stock)}</td>
+      <td style="color:var(--c-red);">${fmt(r.demand_teu)}</td>
+      <td><span class="matrix-cell ${cls}">${net>0?'+':''}${fmt(net)}</span></td>
+      <td style="text-align:center;">
+        <button class="btn-edit" onclick="openECREditModal(${r.id},'${r.name}',${r.empty_teu_stock},${r.demand_teu})" style="font-size:.72rem;">
+          <i data-lucide="pencil" style="width:12px;height:12px;"></i> Edit
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  lucide.createIcons();
+}
+
+function renderCostMatrix(inventory, costs) {
+  const portCodes = inventory.map(r => r.code);
+  const costLookup = {};
+  costs.forEach(c => { costLookup[`${c.origin_code}_${c.dest_code}`] = c.cost_per_teu; });
+
+  let html = `<table class="tbl" style="font-size:.78rem;"><thead><tr><th>From \\ To</th>`;
+  portCodes.forEach(c => { html += `<th style="color:var(--c-cyan);">${c}</th>`; });
+  html += '</tr></thead><tbody>';
+  portCodes.forEach(orig => {
+    html += `<tr><td style="color:var(--c-cyan);font-weight:600;">${orig}</td>`;
+    portCodes.forEach(dest => {
+      if (orig===dest) html += `<td style="color:var(--c-muted);text-align:center;">—</td>`;
+      else {
+        const cost = costLookup[`${orig}_${dest}`]||'?';
+        html += `<td style="text-align:center;font-weight:600;color:var(--c-amber);">$${cost}</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  $('ecr-cost-matrix').innerHTML = html;
+}
+
+// ── ECR Inventory Edit Modal ───────────────────────────────
+function openECREditModal(portId, portName, stock, demand) {
+  $('ecr-edit-port-id').value = portId;
+  $('modal-ecr-title').textContent = `Update Inventory — ${portName}`;
+  $('ecr-edit-stock').value  = stock;
+  $('ecr-edit-demand').value = demand;
+  openModal('modal-ecr-edit');
+}
+
+async function saveInventory() {
+  const portId = $('ecr-edit-port-id').value;
+  const stock  = parseInt($('ecr-edit-stock').value);
+  const demand = parseInt($('ecr-edit-demand').value);
+  if (isNaN(stock)||stock<0||isNaN(demand)||demand<0) {
+    showToast('TEU values must be non-negative integers', 'error'); return;
+  }
+  try {
+    await fetchJSON(`/api/ports/${portId}/inventory`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ empty_teu_stock:stock, demand_teu:demand })
+    });
+    showToast('Inventory updated', 'success');
+    closeModal('modal-ecr-edit');
+    $('ecr-results').style.display = 'none'; // reset optimizer results
+    loadECR();
+    refreshDashboardInBackground();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function runOptimizer() {
+  const btn = $('btn-optimize');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Solving…';
+  try {
+    const result = await fetchJSON('/api/ecr/optimize', { method:'POST' });
+    renderOptimizerResult(result);
+  } catch(e) {
+    showToast('Optimization failed: '+e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="zap" style="width:15px;height:15px;"></i> Run Transport Optimization';
+    lucide.createIcons();
+  }
+}
+
+function renderOptimizerResult(result) {
+  const panel = $('ecr-results');
+  panel.style.display = 'block';
+  $('ecr-total-cost').textContent = `$${fmt(result.total_cost)}`;
+  $('ecr-savings').textContent    = `$${fmt(result.savings_vs_naive)}`;
+  const noteEl = $('ecr-balance-note');
+  if (result.message) {
+    noteEl.textContent = result.message; noteEl.style.color = 'var(--c-emerald)';
+  } else {
+    noteEl.textContent = result.dummy_used
+      ? '⚠ Supply ≠ Demand — dummy balancing node injected automatically.'
+      : '✓ Supply/Demand balanced · Optimal VAM allocation computed.';
+    noteEl.style.color = result.dummy_used ? 'var(--c-amber)' : 'var(--c-emerald)';
+  }
+  const tbody = $('ecr-result-tbody');
+  tbody.innerHTML = '';
+  if (!result.allocations?.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--c-muted);text-align:center;padding:20px;">No repositioning required.</td></tr>';
+    return;
+  }
+  result.allocations.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--c-muted);">${i+1}</td>
+      <td style="color:var(--c-emerald);font-weight:600;">${row.origin}</td>
+      <td style="color:var(--c-red);">${row.destination}</td>
+      <td style="color:var(--c-cyan);font-weight:800;">${fmt(row.teu)} TEU</td>
+      <td>$${row.cost_per_teu}</td>
+      <td style="font-weight:700;color:var(--c-amber);">$${fmt(row.total_cost)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  panel.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ─────────────────────────────────────────────────────────────
+// BADGE HELPER
+// ─────────────────────────────────────────────────────────────
+function badgeHTML(text, color) {
+  return `<span class="badge badge-${color}">${text.replace('_',' ')}</span>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  startClock();
+  checkHealth();
+  setInterval(checkHealth, 30000);
+  loadDashboard();
+});
+</script>
+</body>
+</html>
